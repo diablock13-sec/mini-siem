@@ -6,7 +6,9 @@ authors = [
     { name = "diablock13-sec", email = "diablock13@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pyyaml>=6.0.3",
+]
 
 [project.scripts]
 mini-siem = "mini_siem:main"

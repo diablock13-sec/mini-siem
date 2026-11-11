@@ -1,0 +1,34 @@
+# Aturan deteksi mini-siem.
+# Regex dicocokkan ke path yang sudah di-decode dan huruf kecil.
+# Blok `|-` dipakai supaya karakter ' " \ tidak perlu di-escape.
+
+sql_injection:
+  - name: or-1=1
+    pattern: |-
+      \bor\s+\d+\s*=\s*\d+
+  - name: quote-or-quote
+    pattern: |-
+      '\s*or\s*'
+  - name: union-select
+    pattern: |-
+      \bunion\s+(all\s+)?select\b
+  - name: comment-after-quote
+    pattern: |-
+      ['"]\s*(--|#|/\*)
+  - name: sleep-benchmark
+    pattern: |-
+      \b(sleep|benchmark)\s*\(\s*\d+
+  - name: information-schema
+    pattern: |-
+      \binformation_schema\b
+
+directory_traversal:
+  - name: "../"
+    pattern: |-
+      \.\.[/\\]
+
+brute_force:
+  threshold: 5
+  window_seconds: 60
+  login_paths: ["/login"]
+  statuses: [401, 403]

@@ -1,17 +1,8 @@
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import unquote_plus
 
-SQLI_PATTERNS = {
-    "or-1=1": re.compile(r"\bor\s+\d+\s*=\s*\d+"),
-    "quote-or-quote": re.compile(r"'\s*or\s*'"),
-    "union-select": re.compile(r"\bunion\s+(all\s+)?select\b"),
-    "comment-after-quote": re.compile(r"['\"]\s*(--|#|/\*)"),
-    "sleep-benchmark": re.compile(r"\b(sleep|benchmark)\s*\(\s*\d+"),
-    "information-schema": re.compile(r"\binformation_schema\b"),
-}
-TRAVERSAL = re.compile(r"\.\.[/\\]")
+from mini_siem.rules import Rules, default_rules
 
 
 @dataclass(frozen=True)
@@ -33,20 +24,23 @@ def normalize(text: str) -> str:
     return text.lower()
 
 
-def detect(entry: dict) -> list[Alert]:
+def detect(entry: dict, rules: Rules | None = None) -> list[Alert]:
     """Kembalikan daftar alert untuk satu entri log. Jinak: daftar kosong."""
+    if rules is None:
+        rules = default_rules()
     text = normalize(entry["path"])
     alerts = []
 
-    hits = [name for name, rx in SQLI_PATTERNS.items() if rx.search(text)]
+    hits = [name for name, rx in rules.sql_injection.items() if rx.search(text)]
     if hits:
         alerts.append(
             Alert("sql_injection", entry["ip"], entry["time"], entry["path"], ", ".join(hits))
         )
 
-    if TRAVERSAL.search(text):
+    hits = [name for name, rx in rules.directory_traversal.items() if rx.search(text)]
+    if hits:
         alerts.append(
-            Alert("directory_traversal", entry["ip"], entry["time"], entry["path"], "../")
+            Alert("directory_traversal", entry["ip"], entry["time"], entry["path"], ", ".join(hits))
         )
 
     return alerts
