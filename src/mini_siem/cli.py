@@ -1,9 +1,13 @@
 import argparse
 import logging
+import sys
 from pathlib import Path
 
-from mini_siem.parser import parse_file
+from mini_siem.follow import follow
+from mini_siem.parser import parse_file, parse_line
 from mini_siem.pipeline import Pipeline
+
+log = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -14,7 +18,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="cetak alert ke layar, jangan kirim ke Telegram",
     )
+    ap.add_argument(
+        "-f", "--follow", action="store_true", help="ikuti file seperti tail -f"
+    )
+    ap.add_argument(
+        "--from-start",
+        action="store_true",
+        help="dengan --follow: baca isi lama dulu, bukan hanya baris baru",
+    )
     args = ap.parse_args(argv)
+    if args.from_start and not args.follow:
+        ap.error("--from-start hanya berlaku bersama --follow")
     if not args.logfile.is_file():
         ap.error(f"file tidak ditemukan: {args.logfile}")
 
@@ -32,7 +46,19 @@ def main(argv: list[str] | None = None) -> int:
 
     pipeline = Pipeline(send)
     total = 0
-    for entry in parse_file(args.logfile):
-        total += len(pipeline.process(entry))
+    try:
+        if args.follow:
+            print(f"mengikuti {args.logfile}, Ctrl+C untuk berhenti", file=sys.stderr)
+            for line in follow(args.logfile, from_start=args.from_start):
+                entry = parse_line(line)
+                if entry is None:
+                    log.warning("baris tidak bisa dibaca, dilewati")
+                    continue
+                total += len(pipeline.process(entry))
+        else:
+            for entry in parse_file(args.logfile):
+                total += len(pipeline.process(entry))
+    except KeyboardInterrupt:
+        print(file=sys.stderr)
     print(f"{total} alert dikirim")
     return 0
