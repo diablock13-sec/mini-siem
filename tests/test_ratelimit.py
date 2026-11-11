@@ -54,3 +54,23 @@ def test_memori_dibersihkan():
     # 11 IP baru, jauh setelah jendela lewat: entri lama harus dibuang
     limiter.allow(buat_alert(ip="10.0.1.1", detik=1000))
     assert len(limiter._last_sent) == 1
+
+
+def test_export_restore_menahan_alert_setelah_restart():
+    lama = AlertLimiter(window_seconds=300)
+    lama.allow(buat_alert(detik=0))
+    baru = AlertLimiter(window_seconds=300)
+    baru.restore(lama.export())
+    assert baru.allow(buat_alert(detik=60)) is False
+    assert baru.allow(buat_alert(detik=300)) is True
+
+
+def test_restore_melewati_data_rusak():
+    limiter = AlertLimiter()
+    limiter.restore(
+        [
+            ("1.1.1.1", "sql_injection", "bukan-tanggal"),
+            ("1.1.1.2", "sql_injection", "2026-11-11T10:00:00"),  # tanpa zona waktu
+        ]
+    )
+    assert limiter.export() == []
