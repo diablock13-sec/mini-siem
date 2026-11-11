@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# contoh log palsu untuk test (log asli tetap diabaikan)
+!samples/*.log
