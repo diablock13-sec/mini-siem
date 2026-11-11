@@ -21,6 +21,7 @@ def _save(state_path: Path, logfile: Path, pos: tuple[int, int], pipeline: Pipel
         inode=pos[0],
         offset=pos[1],
         sent=[list(item) for item in pipeline.limiter.export()],
+        failures=pipeline.brute.export(),
     )
     try:
         save_state(state_path, state)
@@ -34,6 +35,7 @@ def _run_follow(args: argparse.Namespace, pipeline: Pipeline) -> int:
     logfile = args.logfile.resolve()
     state = load_state(state_path) if persist else State()
     pipeline.limiter.restore(state.sent)
+    pipeline.brute.restore(state.failures)
 
     resume = None
     if state.logfile == str(logfile) and state.inode is not None and state.offset is not None:

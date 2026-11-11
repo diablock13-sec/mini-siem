@@ -49,6 +49,38 @@ class BruteForceDetector:
             self._prune(now)
         return None
 
+    def export(self) -> dict[str, list[str]]:
+        """Hitungan gagal login per IP sebagai data sederhana: {ip: [waktu ISO]}."""
+        lasts = [times[-1] for times in self._failures.values() if times]
+        if not lasts:
+            return {}
+        ref = max(lasts)  # waktu log terbaru, bukan jam sistem
+        return {
+            ip: [t.isoformat() for t in times]
+            for ip, times in self._failures.items()
+            if times and ref - times[-1] <= self.window
+        }
+
+    def restore(self, data: dict[str, list[str]]) -> None:
+        """Muat hasil export(). Waktu rusak atau tanpa zona dilewati, jumlah dibatasi."""
+        keep = max(self.threshold - 1, 0)
+        for ip, isos in data.items():
+            if len(self._failures) >= self.max_tracked:
+                break
+            times = []
+            for iso in isos:
+                try:
+                    t = datetime.fromisoformat(iso)
+                except ValueError:
+                    continue
+                if t.tzinfo is None:
+                    continue  # tidak bisa dibandingkan dengan waktu log yang punya zona
+                times.append(t)
+            times.sort()
+            times = times[max(len(times) - keep, 0) :]
+            if times:
+                self._failures[ip] = deque(times)
+
     def _prune(self, now: datetime) -> None:
         """Buang IP yang sudah lama tidak gagal login, supaya memori tidak membengkak."""
         for ip in list(self._failures):

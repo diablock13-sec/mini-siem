@@ -22,6 +22,7 @@ class State:
     inode: int | None = None
     offset: int | None = None
     sent: list[list[str]] = field(default_factory=list)  # [ip, jenis, waktu ISO]
+    failures: dict[str, list[str]] = field(default_factory=dict)  # ip -> [waktu ISO]
 
 
 def load_state(path: Path) -> State:
@@ -53,6 +54,13 @@ def load_state(path: Path) -> State:
             for e in sent
             if isinstance(e, list) and len(e) == 3 and all(isinstance(x, str) for x in e)
         ]
+    failures = data.get("failures")
+    if isinstance(failures, dict):
+        state.failures = {
+            ip: times
+            for ip, times in failures.items()
+            if isinstance(times, list) and all(isinstance(x, str) for x in times)
+        }
     return state
 
 
@@ -65,6 +73,7 @@ def save_state(path: Path, state: State) -> None:
         "inode": state.inode,
         "offset": state.offset,
         "sent": state.sent,
+        "failures": state.failures,
     }
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".state-", suffix=".tmp")
     try:
