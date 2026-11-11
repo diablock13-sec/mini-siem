@@ -5,7 +5,10 @@ from mini_siem.detector import Alert
 
 
 class AlertLimiter:
-    """Izinkan maksimal 1 alert per (IP, jenis serangan) per `window_seconds`."""
+    """Izinkan maksimal 1 alert per (IP, jenis serangan) per `window_seconds`.
+
+    Pakai berpasangan: `allow()` mengecek, `record()` mencatat setelah kirim sukses.
+    """
 
     def __init__(self, window_seconds: int = 300, max_tracked: int = 10_000):
         self.window = timedelta(seconds=window_seconds)
@@ -13,16 +16,15 @@ class AlertLimiter:
         self._last_sent: dict[tuple[str, str], datetime] = {}
 
     def allow(self, alert: Alert) -> bool:
-        """True kalau alert boleh dikirim. Alert yang ditahan tidak memperpanjang jendela."""
-        key = (alert.ip, alert.kind)
-        last = self._last_sent.get(key)
-        if last is not None and alert.time - last < self.window:
-            return False
+        """True kalau alert boleh dikirim. Tidak mengubah state."""
+        last = self._last_sent.get((alert.ip, alert.kind))
+        return last is None or alert.time - last >= self.window
 
-        self._last_sent[key] = alert.time
+    def record(self, alert: Alert) -> None:
+        """Catat alert sebagai terkirim. Panggil hanya setelah send() berhasil."""
+        self._last_sent[(alert.ip, alert.kind)] = alert.time
         if len(self._last_sent) > self.max_tracked:
             self._prune(alert.time)
-        return True
 
     def export(self) -> list[tuple[str, str, str]]:
         """Isi limiter sebagai data sederhana untuk disimpan: (ip, jenis, waktu ISO)."""

@@ -70,3 +70,21 @@ def test_gagal_kirim_tidak_crash_dan_token_tidak_bocor(caplog):
     assert sent == []
     assert "401" in caplog.text
     assert "RAHASIA123" not in caplog.text
+
+
+def test_gagal_kirim_tidak_menahan_alert_berikutnya():
+    terkirim: list[str] = []
+    percobaan = 0
+
+    def send_kadang_gagal(text: str) -> None:
+        nonlocal percobaan
+        percobaan += 1
+        if percobaan == 1:
+            raise httpx.ConnectError("jaringan putus")
+        terkirim.append(text)
+
+    pipe = Pipeline(send_kadang_gagal)
+    assert pipe.process(entri(path=SQLI, detik=0)) == []  # gagal, tidak tercatat
+    assert len(pipe.process(entri(path=SQLI, detik=30))) == 1  # lolos lagi
+    assert pipe.process(entri(path=SQLI, detik=60)) == []  # sukses sebelumnya menahan
+    assert len(terkirim) == 1

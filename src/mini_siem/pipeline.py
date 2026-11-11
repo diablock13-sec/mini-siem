@@ -46,5 +46,6 @@ class Pipeline:
             except httpx.HTTPError as exc:
                 log.error("gagal kirim alert: %s", type(exc).__name__)
                 continue
+            self.limiter.record(alert)
             sent.append(alert)
         return sent
