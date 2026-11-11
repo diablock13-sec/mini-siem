@@ -120,5 +120,6 @@ def main(argv: list[str] | None = None) -> int:
                 total += len(pipeline.process(entry))
         except KeyboardInterrupt:
             print(file=sys.stderr)
-    print(f"{total} alert dikirim")
+    verb = "dicetak" if args.dry_run else "dikirim"
+    print(f"{total} alert {verb}")
     return 0
